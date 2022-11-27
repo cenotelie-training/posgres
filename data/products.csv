@@ -1,0 +1,28 @@
+id,name,power,cost,category
+1,phone charger,3,1.23,charger
+2,AA  NiMH rechargeable batteries (12-pack),,5.00,battery
+3,AAA NiMH rechargeable batteries  (6-pack),,2.20,battery
+4,AAA NiMH rechargeable batteries (12-pack),,4.40,battery
+5,12-volt Lithium-ion solar battery,,2100.00,battery
+6,18-volt Lithium-ion solar battery,,2300.00,battery
+7,36-volt Lithium-ion solar battery,,2800.00,battery
+8,Breeze Mini ,5,31.45,blast
+9,Blast 100,100,175.00,blast
+10,Blast 200,200,230.00,blast
+11,Blast 400,400,455.00,blast
+12,Blast 400x,400,650.00,blast
+13,Blast 600,600,585.00,blast
+14,Blast 800,800,685.00,blast
+15,Blast 1200,1200,1050.00,blast
+16,Energy Bulbs 9W ,9,0.55,bulb
+17,Energy Bulbs 9W (4-pack),9,2.20,bulb
+18,Energy Bulbs 9W  (8-pack),9,4.40,bulb
+19,Energy Bulbs 13W ,13,0.75,bulb
+20,Energy Bulbs 13W (4-pack),13,3.00,bulb
+21,Energy Bulbs 13W  (8-pack),13,6.00,bulb
+22,Energy Bulbs 20W ,20,1.20,bulb
+23,Energy Bulbs 20W (4-pack),20,4.90,bulb
+24,Energy Bulbs 20W  (8-pack),20,9.80,bulb
+25,Energy Bulbs 23W ,23,1.45,bulb
+26,Energy Bulbs 23W (4-pack),23,5.80,bulb
+27,Energy Bulbs 23W  (8-pack),23,11.60,bulb
