@@ -2,6 +2,7 @@ version: "3"
 
 volumes:
   trainingdata:
+  pgadmindata:
 
 services:
   training-postgres:
@@ -26,5 +27,5 @@ services:
       - PGADMIN_DEFAULT_EMAIL=akoudri@cenotelie.fr
       - PGADMIN_DEFAULT_PASSWORD=cenotelie
     volumes:
-      - ./data:/var/lib/pgadmin/storage/akoudri_cenotelie.fr/:Z
+      - pgadmindata:/var/lib/pgadmin4/storage
 
