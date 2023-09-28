@@ -1,3 +1,5 @@
+----------- Requêtes ---------------------
+
 select * from inventory.products
 where price between 10 and 20;
 
@@ -23,38 +25,126 @@ create role rh with login;
 grant select on table manufacturing.employees to rh;
 alter role rh with password 'avicenne';
 
-select
-	size, count(*)
+
+---------- Agrégations -----------------
+
+select size, count(*) as nb
 from inventory.products
 group by size
+order by nb;
 
-select
-	name, count(*) as "num"
-from inventory.products
+select state, count(*)
+from sales.customers
+group by state;
+
+select name, round(avg(price), 2) as avg_price from inventory.products
 group by name
-order by num desc;
+order by avg_price;
 
-select category_id, size, count(*)
+select name, max(price) - min(price) as diff from inventory.products
+group by name
+order by name;
+
+SELECT state, count(*), bool_and(newsletter) 
+FROM sales.customers 
+GROUP BY state;
+
+select gender, count(*), round(avg(height), 2) as avg, 
+	min(height), max(height), round(variance(height), 2) as var, 
+	round(stddev(height), 2) as std
+from people
+group by gender;
+
+select category_id, size, count(*),
+	min(price) as "lowest price",
+	max(price) as "highest price",
+	round(avg(price), 2) as "average price"
 from inventory.products
-group by cube(category_id, size)
-order by category_id, size
+group by rollup(category_id, size)
+order by category_id, size;
 
 select 
+	gender,
 	count(*) filter (where height < 170) as cat1,
 	avg(height) filter (where height < 170) as avg1,
 	count(*) filter (where height >= 170) as cat2,
 	avg(height) filter (where height >= 170) as avg2
-from people;
+from people
+group by rollup(gender);
 
-select customer_id,
-	count(*) filter (where order_date >= '2021-03-01' and order_date <= '2021-03-31') as "March",
-	count(*) filter (where order_date between '2021-04-01' and '2021-04-30') as "April"
-from sales.orders
-group by customer_id;
+SELECT
+  customer_id,
+  EXTRACT(YEAR FROM order_date) AS order_year,
+  EXTRACT(MONTH FROM order_date) AS order_month,
+  COUNT(customer_id) AS order_count
+FROM
+  sales.orders
+GROUP BY
+  customer_id,
+  order_year,
+  order_month
+ORDER BY
+  customer_id,
+  order_year ASC,
+  order_month ASC;
+  
+select sku, sum(quantity) as "total" from sales.order_lines
+group by(sku)
+order by total desc;
 
-select sku, size, avg(price), min(size), max(size) over(partition by size)
-from inventory.products
-order by sku, size;
+SELECT 
+    name, 
+    size, 
+    MIN(price) OVER(PARTITION BY name, size) AS min_price,
+    MAX(price) OVER(PARTITION BY name, size) AS max_price,
+    AVG(price) OVER(PARTITION BY name, size) AS avg_price
+FROM inventory.products;
+
+with tab as (
+	select 
+		order_lines.order_id as id, 
+		products.sku as sku, 
+		quantity, 
+		price, 
+		quantity * price as prod
+	from sales.order_lines
+	left join inventory.products on order_lines.sku = products.sku
+)
+select 
+	id, sku, quantity, price, prod, 
+	sum(prod) over (partition by id order by sku) as cum
+from tab;
+	
+
+SELECT
+	company,
+	ROW_NUMBER() OVER (ORDER BY company) AS row_number,
+	FIRST_VALUE(company) OVER (ORDER BY company) AS first_value,
+	LAST_VALUE(company) OVER (ORDER BY company RANGE BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) AS last_value,
+	NTH_VALUE(company, 3) OVER (ORDER BY company) AS nth_value
+FROM sales.customers;
+
+
+SELECT
+	gender,
+	percentile_disc(0.25) within group (order by height) as "0.25",
+	percentile_disc(0.5) within group (order by height) as "0.5",
+	percentile_disc(0.75) within group (order by height) as "0.75"
+FROM people
+GROUP by rollup(gender);
+
+WITH tab AS (
+	SELECT
+		customer_id,
+		FIRST_VALUE(order_date) OVER (PARTITION BY customer_id ORDER BY order_date ASC) AS first_order_date,
+		LAST_VALUE(order_date) OVER (PARTITION BY customer_id ORDER BY order_date ASC ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) AS last_order_date
+	FROM
+		sales.orders
+	ORDER BY
+		customer_id
+)
+SELECT DISTINCT * FROM tab;
+
 
 select sku,
 	name,
@@ -140,5 +230,17 @@ DROP TABLE old_people;
 
 CREATE TABLE public.people_trans PARTITION OF public.people FOR VALUES IN ('t');
 ALTER TABLE public.people ATTACH PARTITION public.people_trans FOR VALUES IN ('t');
+
+--------------------- INDEX ---------------------------------------
+
+CREATE INDEX idx_orders_delivery_address_gin ON public.orders USING gin (delivery_address gin_trgm_ops);
+
+CREATE INDEX idx_orders_order_date ON public.orders (order_date);
+
+CREATE INDEX idx_orders_order_status ON public.orders (order_status) WHERE order_status IN ('Pending', 'Shipped', 'Delivered', 'Cancelled');
+
+CREATE INDEX idx_orders_customer_id_product_id ON public.orders (customer_id, product_id);
+
+
 
 
