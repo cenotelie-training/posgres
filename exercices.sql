@@ -133,6 +133,16 @@ SELECT
 FROM people
 GROUP by rollup(gender);
 
+select category_id,
+	min(price) as "min price",
+	percentile_cont(.25) within group (order by price) as "1st quartile",
+	percentile_cont(.50) within group (order by price) as "2nd quartile",
+	percentile_cont(.75) within group (order by price) as "3rd quartile",
+	max(price) as "max price",
+	max(price) - min(price) as "price range"
+from inventory.products
+group by rollup(category_id);
+
 WITH tab AS (
 	SELECT
 		customer_id,
@@ -185,25 +195,141 @@ from people;
 select name, height, ntile(4) over (order by height)
 from people order by height;
 
-select
-	mode() within group (order by height)
-from public.people;
-
-select category_id,
-	min(price) as "min price",
-	percentile_cont(.25) within group (order by price) as "1st quartile",
-	percentile_cont(.50) within group (order by price) as "2nd quartile",
-	percentile_cont(.75) within group (order by price) as "3rd quartile",
-	max(price) as "max price",
-	max(price) - min(price) as "price range"
-from inventory.products
-group by rollup(category_id);
-
 select name, gender, height,
 	rank() over (partition by gender order by height desc),
 	dense_rank() over (partition by gender order by height desc)
 from people
 order by gender, height desc;
+
+select
+	mode() within group (order by height)
+from public.people;
+
+SELECT round(height), COUNT(*)
+FROM public.people
+GROUP BY round(height);
+
+--OR
+
+SELECT DISTINCT height,
+       COUNT(*) OVER (PARTITION BY height) as count
+FROM public.people;
+
+
+SELECT 
+    pclass,
+    sex,
+    COUNT(*) AS total_people,
+    SUM(CASE WHEN survived = 1 THEN 1 ELSE 0 END) / COUNT(*)::float AS survival_rate
+FROM public.titanic
+GROUP BY pclass, sex
+ORDER BY survival_rate;
+
+----------------- SERIES TEMPORELLES ----------------
+
+SELECT 
+    t.city,
+    t.country,
+    ROUND(MIN(t.measure_value), 2) AS min,
+    ROUND(MAX(t.measure_value), 2) AS max,
+    ROUND(AVG(t.measure_value), 2) AS mean,
+    ROUND((MAX(t.measure_value) - MIN(t.measure_value)), 2) AS interval,
+    ROUND(STDDEV(t.measure_value), 2) AS dev,
+    c.nb_cities
+FROM public.temperatures t
+JOIN (
+    SELECT 
+        country,
+        COUNT(DISTINCT city) AS nb_cities
+    FROM public.temperatures
+    GROUP BY country
+) c ON t.country = c.country
+GROUP BY t.city, t.country, c.nb_cities
+ORDER BY t.country, t.city;
+
+SELECT 
+    EXTRACT(YEAR FROM measure_date) AS year,
+    ROUND(AVG(measure_value), 2) AS avg_annual_temperature
+FROM public.temperatures
+WHERE 
+    city = 'Paris' AND 
+    EXTRACT(YEAR FROM measure_date) BETWEEN 1900 AND 1999
+GROUP BY year
+ORDER BY year;
+
+SELECT CORR(paris, new_york) as corr_coeff
+FROM (
+	SELECT 
+		EXTRACT(YEAR FROM measure_date) AS year,
+		AVG(CASE WHEN city = 'Paris' THEN measure_value END) AS paris,
+		AVG(CASE WHEN city = 'New York' THEN measure_value END) AS new_york
+	FROM public.temperatures
+	WHERE 
+		(city = 'Paris' OR city = 'New York') AND 
+		EXTRACT(YEAR FROM measure_date) BETWEEN 1900 AND 1999
+	GROUP BY year
+	ORDER BY year
+) AS annual_temperatures;
+
+WITH RankedTemperatures AS (
+    SELECT
+        EXTRACT(YEAR FROM measure_date) AS year,
+        CASE 
+            WHEN EXTRACT(MONTH FROM measure_date) <= 6 THEN 'First Half'
+            ELSE 'Second Half'
+        END AS half_year,
+        measure_value AS temperature,
+        ROW_NUMBER() OVER (
+            PARTITION BY EXTRACT(YEAR FROM measure_date), 
+            CASE WHEN EXTRACT(MONTH FROM measure_date) <= 6 THEN 'First Half' ELSE 'Second Half' END
+            ORDER BY measure_date
+        ) AS row_num
+    FROM public.temperatures
+    WHERE 
+        city = 'Paris' AND
+        EXTRACT(YEAR FROM measure_date) BETWEEN 1900 AND 1999
+)
+SELECT year, half_year, temperature
+FROM RankedTemperatures
+WHERE row_num = 1
+ORDER BY year, half_year;
+
+SELECT
+    date_trunc('decade', measure_date) AS decade_start,
+    ROUND(AVG(measure_value), 2) AS avg_temperature
+FROM public.temperatures
+WHERE 
+    city = 'Paris' AND
+    measure_date BETWEEN '1900-01-01' AND '1999-12-31'
+GROUP BY decade_start
+ORDER BY decade_start;
+
+SELECT
+    year,
+    AVG(avg_temperature) OVER (ORDER BY year ROWS BETWEEN 4 PRECEDING AND CURRENT ROW) AS moving_avg_temperature
+FROM (
+    SELECT
+        EXTRACT(year FROM measure_date) AS year,
+        AVG(measure_value) AS avg_temperature
+    FROM public.temperatures
+    WHERE 
+        city = 'Paris' AND
+        measure_date BETWEEN '1900-01-01' AND '1999-12-31'
+    GROUP BY year
+) AS yearly_avg_temperatures
+ORDER BY year;
+
+with tab as (
+	select measure_date, round(measure_value, 2) as measure
+	from temperatures
+	where city='Paris' 
+		and (extract(year from measure_date) between 1900 and 2000)
+	order by measure_date
+)
+select measure_date, 
+	measure, 
+	measure - lag(measure) over() as diff
+from tab;
 
 ----------------- PARTITIONS ------------------------
 
