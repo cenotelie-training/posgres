@@ -67,7 +67,7 @@ ADD CONSTRAINT fk_customers_customer_id FOREIGN KEY (customer_id)
 CREATE TABLE sales.order_lines (
     id     SERIAL NOT NULL PRIMARY KEY,
     order_id    INT,
-    sku         VARCHAR(7),
+    sku         VARCHAR(7) REFERENCES inventory.products(sku),
     quantity    INT
 );
 
