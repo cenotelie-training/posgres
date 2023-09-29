@@ -367,6 +367,7 @@ CREATE INDEX idx_orders_order_status ON public.orders (order_status) WHERE order
 
 CREATE INDEX idx_orders_customer_id_product_id ON public.orders (customer_id, product_id);
 
+--------------------- QUIZZ -------------------------------------
 
-
+-- 2. b, 3. d, 4. b, 5. c, 6. a, 8. d
 
