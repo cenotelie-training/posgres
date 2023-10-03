@@ -88,7 +88,8 @@ ORDER BY
   order_year ASC,
   order_month ASC;
   
-select sku, sum(quantity) as "total" from sales.order_lines
+select sku, sum(quantity) as "total" 
+from sales.order_lines
 group by(sku)
 order by total desc;
 
@@ -215,14 +216,19 @@ SELECT DISTINCT height,
        COUNT(*) OVER (PARTITION BY height) as count
 FROM public.people;
 
-
-SELECT 
+SELECT
     pclass,
     sex,
+	case
+		when age < 20 then '-20'
+		when age >= 20 and age < 40 then '20-40'
+		when age >= 40 and age < 60 then '40-60'
+		else '60+'
+	end as category,
     COUNT(*) AS total_people,
-    SUM(CASE WHEN survived = 1 THEN 1 ELSE 0 END) / COUNT(*)::float AS survival_rate
+    SUM(survived) / COUNT(*)::float AS survival_rate
 FROM public.titanic
-GROUP BY pclass, sex
+GROUP BY pclass, sex, category
 ORDER BY survival_rate;
 
 ----------------- SERIES TEMPORELLES ----------------
