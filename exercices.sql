@@ -363,6 +363,49 @@ DROP TABLE old_people;
 CREATE TABLE public.people_trans PARTITION OF public.people FOR VALUES IN ('t');
 ALTER TABLE public.people ATTACH PARTITION public.people_trans FOR VALUES IN ('t');
 
+
+CREATE TABLE public.new_temperatures (
+    id serial NOT NULL,
+    measure_date date NOT NULL,
+    measure_value numeric NOT NULL,
+    city character varying(255) NOT NULL,
+    country character varying(255) NOT NULL,
+    PRIMARY KEY (id, country)
+) PARTITION BY LIST (country);
+
+DO $$ 
+DECLARE 
+    country_name VARCHAR(255);
+    escaped_country_name VARCHAR(255);
+BEGIN 
+    FOR country_name IN (SELECT DISTINCT country FROM public.temperatures)
+    LOOP
+        -- Escape single quotes in the country name
+        escaped_country_name := replace(country_name, '''', '''''');
+
+        EXECUTE format('CREATE TABLE %I PARTITION OF public.new_temperatures FOR VALUES IN (''%s'')', 
+                       'temperatures_' || replace(country_name, ' ', '_'), escaped_country_name);
+    END LOOP;
+END $$;
+
+INSERT INTO public.new_temperatures SELECT * FROM public.temperatures;
+
+ALTER TABLE public.temperatures RENAME TO temperatures_old;
+ALTER TABLE public.new_temperatures RENAME TO temperatures;
+
+--------------------- VACUUM --------------------------------
+
+INSERT INTO public.people (id, name, height, gender)
+SELECT 
+	ROW_NUMBER() OVER() + 1000 ,
+    SUBSTRING(MD5(RANDOM()::TEXT) FROM 1 FOR 10),
+    (100.0 + (RANDOM() * 100.0))::DECIMAL(5,2),
+    CASE WHEN RANDOM() < 0.5 THEN 'm' ELSE 'n' END
+FROM generate_series(1, 100000);
+
+DELETE FROM people WHERE id > 1000 AND id < 70000;
+
+
 --------------------- INDEX ---------------------------------------
 
 CREATE INDEX idx_orders_delivery_address_gin ON public.orders USING gin (delivery_address gin_trgm_ops);
